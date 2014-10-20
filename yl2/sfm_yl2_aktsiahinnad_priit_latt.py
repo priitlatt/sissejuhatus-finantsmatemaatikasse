@@ -1,32 +1,48 @@
-
 # coding: utf-8
 
-# In[1]:
+# MTMM.00.195 Sissejuhatus finantsmatemaatikasse
+# 2. kodutöö - Priit Lätt
+
+# Impordime edaspidises vajaminevad moodulid:
+#  * `datetime` - kuupäevade formaatimiseks,
+#  * `numpy` - vektorarvutuse jaoks,
+#  * `matplotlib` - jooniste tegemiseks,
+#  * `HTML` - algandmete tabelina kuvamiseks.
 
 import datetime
 
+from IPython.display import HTML
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-# In[2]:
+# Loeme algandmed sisse failist `tallink.csv` ning salvestame nad listi `data`.
 
 data = []
-
-# loeme andmed sisse
 
 with open('tallink.csv') as f:
     header_string = next(f)
     for line in f:
         data.append(line.strip().split(','))
 
-headers = {k.strip().lower(): i for i, k in 
+headers = {k.strip().lower(): i for i, k in
            enumerate(header_string.split(','))}
 
+# Kuvame algandmed `HTML` tabelina.
 
-# In[3]:
+table = "<table>{headers}{rows}</table>"
+table_headers, table_rows = "", ""
 
-# koostame andmete põhjal kuupäevade ja hindade järjendid
+for header in header_string.split(','):
+    table_headers += "<th>{}</th>".format(header)
+
+for row in data:
+    columns = map(lambda v: "<td>{}</td>".format(v), row)
+    table_rows += "<tr>{}</tr>".format(''.join(columns))
+
+HTML(table.format(headers=table_headers, rows=table_rows))
+
+# Koostame andmete põhjal kuupäevade järjendi `dates`
+# ja hindade järjendi `prices`.
 
 dates = []
 for line in data:
@@ -38,20 +54,25 @@ prices = np.array(
     map(float, (line[headers['open price']] for line in data))
 )
 
-# alghinnaks määrame viimase teadaoleva hinna
+# Määrame alghinnaks `S0` viimase teadaoleva hinna.
+
 S0 = prices[-1]
 
-# arvutame aktsiahinna muutude põhjal müü
+# Arvutame aktsiahinna muutude põhjal $\mu$ ja salvestame
+# selle muutujasse `mu`.
+
 changes_in_percentage = np.array(
     map(float, (line[headers['price change(%)']][:-1] for line in data))
 )
-mu = np.average(changes_in_percentage)/100
+mu = np.average(changes_in_percentage) / 100
 
-# leiame aktsiahinna muutused päevade lõikes
+# Leiame aktsiahinna muutused päevade lõikes ja salvestame nad
+# järjendisse `changes`.
+
 changes = prices[:-1] - prices[1:]
 
-
-# In[4]:
+# Joonestame algandmed graafikule. Esimesel graafikul on toodud
+# **Tallinki** aktsia hind ning teisel aktsiahinna muutused päevade lõikes.
 
 plt.figure(figsize=(20, 14))
 plt.rcParams['font.size'] = 16
@@ -72,14 +93,25 @@ plt.plot(dates[1:], changes)
 
 plt.show()
 
+# Leiame muutuste põhjal standardhälbe $\Sigma$ ning salvestame ta
+# muutujasse `sigma` ning defineerime simulatsioonide arvu `n = 10`.
 
-# In[9]:
-
-# leiame muutuste põhjal standardhälbe
 sigma = np.std(changes)
-
-# defineerime simulatsioonide arvu
 N = 10
+
+# Teostame simulatsioonid ja salvestame nad järjendisse `simulations`.
+
+simulations = []
+
+for i in range(N):
+    rand = np.random.randn(1, len(prices))[0]
+    dS = sigma*prices*rand + mu*prices
+    S = [S0]
+    for ds in dS:
+        S.append(S[-1] + ds)
+    simulations.append(S)
+
+# Kanname simulatsioonide tulemused ühele graafikule.
 
 plt.figure(figsize=(20, 12))
 plt.rcParams['font.size'] = 20
@@ -88,27 +120,19 @@ plt.xlabel('Aeg')
 plt.ylabel('Hind (EUR)')
 plt.title('Tallink Grupp aktsiahinna simulatsioon')
 
-simulations = []
-
-# teostame simulatsioonid ning kanname tulemused graafikule
-for i in range(N):
-    rand = np.random.randn(1, len(prices))[0]
-    dS = sigma*prices*rand + mu*prices
-    S = S0 + dS
-    simulations.append(S)
-    plt.plot(S, label="Simulatsioon nr %d" % (i+1))
+for i, sim in enumerate(simulations):
+    plt.plot(sim, label="Simulatsioon nr %d" % (i+1))
 
 plt.legend(loc='best')
 plt.show()
 
-
-# In[10]:
+# Joonestame selguse mõttes simulatsioonid välja ka eraldi teljestikes.
 
 rows = int(N/2) + N % 2
 columns = 2
 
-plt.figure(figsize=(16, rows*4))
-plt.rcParams['font.size'] = 10
+plt.figure(figsize=(16, rows*3))
+plt.rcParams['font.size'] = 8
 
 plt.figure(1)
 for i, S in enumerate(simulations):
@@ -116,9 +140,3 @@ for i, S in enumerate(simulations):
     plt.title("Simulatsioon %d" % (i+1))
     plt.plot(S)
 plt.show()
-
-
-# In[ ]:
-
-
-
